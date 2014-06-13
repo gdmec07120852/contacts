@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <link rel="stylesheet"  href="css/jquery.mobile-1.4.2.min.css">
+        <script src="js/jquery-2.0.2.min.js"></script>
+        <script src="js/jquery.mobile-1.4.2.min.js"></script>
+        <script src="phonegap.js"></script>
+        <script src="http://10.10.16.85:8080/target/target-script-min.js#anonymous"> </script>
+        <title>Hello World</title>
+        <script type="text/javascript">
+        var contact;
+        var filter;
+        function onLoad(){
+            document.addEventListener("deviceready",onDeviceReady,false);
+        }
+        function onDeviceReady(){
+            var options = new ContactFindOptions();
+            options.multiple = true;
+            options.filter= filter;
+            var fields = ["displayName","name","photos","phoneNumbers","emails","organizations"];
+            navigator.contacts.find(fields, onSuccess, onError, options);
+        }
+
+        // onSuccess: 获取当前联系人结果集的快照
+        function onSuccess(contacts) {
+            contacts.sort(by("displayName"));
+            var contactinfo;
+            var phoneNumberStr ;
+            var photoStr;
+
+            $("#contacts_list").html("");
+            for (var i= 0 ; i< contacts.length; i++) {
+                phoneNumberStr ="";
+
+                if (contacts[i].phoneNumbers && (contacts[i].phoneNumbers.length > 0)){
+                    for (var j=0;j<contacts[i].phoneNumbers.length;j++){
+                        phoneNumberStr +=" "+contacts[i].phoneNumbers[j].type+ ":"+contacts[i].phoneNumbers[j].value;
+//                                "<a href='tel:"+ contacts[i].phoneNumbers[j].value+"data-role='button' data-icon='search' data-iconpos='notext'></a>"+
+//                                "<a href='sms:"+ contacts[i].phoneNumbers[j].value+"data-role='button' data-icon='info' data-iconpos='notext'></a>";
+                    }
+                }
+
+                photoStr ="";
+                if (contacts[i].photos && (contacts[i].photos.length > 0)){
+                    for (var j=0; j<contacts[i].photos.length;j++){
+                        photoStr = contacts[i].photos[j].value;
+                    }
+
+                }
+                contactinfo ="<li> <a href=\"#\" class=\"ui-btn ui-btn-icon-right ui-icon-carat-r\" onclick=\"showcontact('"+contacts[i].displayName+"')\">"+
+                        " <img src\='" + photoStr +"' />" +
+                        " <h2>"+contacts[i].displayName+ "</h2> "+
+                        "<p>" +phoneNumberStr +"</p>"+
+                        " </a></li> ";
+
+                $("#contacts_list").append(contactinfo);
+            }
+        }
+
+        // onError: 获得联系人失败
+        function onError() {
+            alert('onError!');
+        }
+
+        function showcontact(displayName){
+            var options = new ContactFindOptions();
+            options.multiple = false;
+            options.filter = displayName;
+            var fields=["*"];
+            navigator.contacts.find(fields,onFetchContact,onError,options);
+        }
+
+        function onFetchContact(contacts){
+//            if (contacts || (contacts.length=0)) {
+//                alert("没找到这个联系人");
+//                return;
+//            }
+            contact = contacts[0];
+            renderContact();
+            $.mobile.changePage("#contactdetail", { transition: "pop" });
+        }
+
+        function delItem(Item,index){
+            var str;
+            str = "contact."+Item+".splice("+index+",1)";
+            eval(str);
+            $("#"+Item+index).hide();
+        }
+        function addItem(Item){
+            var str;
+            var newItem;
+            if (Item=="phoneNumbers"){
+                if (!contact.phoneNumbers || contact.phoneNumbers.length==0){
+                    var phoneNumbers = [];
+                    phoneNumbers[0] = new ContactField('mobile', '', true);
+                    contact.phoneNumbers = phoneNumbers;
+                }else{
+                    newItem = new ContactField("mobile","",false);
+                    contact.phoneNumbers.push(newItem);
+                }
+            }
+            var newEmail
+            if (Item=="emails"){
+                if (!contact.emails || contact.emails.length==0){
+                    var emails = [];
+                    emails[0] = new ContactField('mobile', '', true);
+                    contact.emails = emails;
+                }else{
+                    newEmail = new ContactField("mobile","",false);
+                    contact.emails.push(newEmail);
+                }
+            }
+            renderContact();
+        }
+
+        function changePhoneNum(order){
+            contact.phoneNumbers[order].value =eval("phoneInput"+order+".value");
+            console.log(contact.phoneNumbers[order].value);
+        }
+        function changePhoneType(order){
+            contact.phoneNumbers[order].type = eval("phoneType"+order+".value");
+            console.log( contact.phoneNumbers[order].type);
+        }
+        function changeemails(order){
+            contact.emails[order].value =eval("emailsInput"+order+".value");
+            console.log(contact.emails[order].value);
+        }
+
+        function renderContact(){
+            $("#given_name_input").val(contact.name.givenName);
+            $("#family_input").val(contact.name.familyName);
+            $("#middle_input").val(contact.name.middleName);
+            $("#honorificPrefix_input").val(contact.name.honorificPrefix);
+            $("#honorificSuffix_input").val(contact.name.honorificSuffix);
+            $("#nickname_input").val(contact.nickname);
+
+            $("#phoneNumbersdiv").html("");
+            if (contact.phoneNumbers && (contact.phoneNumbers.length > 0)){
+                for (var j=0;j<contact.phoneNumbers.length;j++){
+                    $("#phoneNumbersdiv").append("<p id='phoneNumbers"+j+"'> <select id='phoneType"+j+"'onchange='changePhoneType("+j+")' > "+phoneTypeTemplate+
+                            "<input id='phoneInput"+j+"'  type='tel' placeholder='电话号码' value='' data-mini='true' onchange='changePhoneNum("+j+")'/>" +
+                            "<a data-role='button' data-inline='true' onclick='delItem(\"phoneNumbers\","+j+")'>删除</a> </p>");
+                    $("#phoneType"+j).val(contact.phoneNumbers[j].type);
+                    $("#phoneInput"+j).val(contact.phoneNumbers[j].value);
+                    $("p[id^='phoneNumber']").trigger("create");
+                }
+            }
+            $("#emailsdiv").html("");
+            if (contact.emails && (contact.emails.length > 0)){
+                for (var j=0;j<contact.emails.length;j++){
+                    $("#emailsdiv").append("<p id='emails"+j+"'>"+
+                            "<input id='emailsInput"+j+"'  type='tel' placeholder='电子邮件' value='' data-mini='true' onchange='changeemails("+j+")'/>" +
+                            "<a data-role='button' data-inline='true' onclick='delItem(\"emails\","+j+")'>删除</a> </p>");
+                    $("#emailsInput"+j).val(contact.emails[j].value);
+                    $("p[id^='emails']").trigger("create");
+                }
+            }
+        }
+
+        function saveContact(){
+            contact.save(saveSuccess,saveError);
+            onDeviceReady();
+            $.mobile.changePage("#contactslist", { transition: "pop" });
+        }
+
+        function saveSuccess(contacts){
+            console.log(contacts.length);
+        }
+
+        function saveError(contactError){
+            alert("Error = " + contactError.code);
+        }
+
+
+        function searchContact(){
+            filter = $("#search-input").val();
+            onDeviceReady();
+        }
+
+        function setSortPref(orderType){
+            if (orderType==1) {
+
+            }
+        }
+        function saveGivenName(){
+            contact.name.givenName =$("#given_name_input").val();
+        }
+        function  saveFamilyName(){
+            contact.name.familyName =$("#family_input").val();
+        }
+        function saveNickName(){
+            contact.nickname =$("#nickname_input").val();
+        }
+
+        function newContact(){
+            contact = navigator.contacts.create({"displayName":"新联系人"});
+            contact.displayName = "新联系人";
+            contact.nickname = "新联系人";
+            var cname = new ContactName();
+            contact.name = cname;
+            contact.save(saveSuccess,saveError);
+            filter ="新联系人";
+            onDeviceReady();
+            $.mobile.changePage("#contactslist", { transition: "pop" });
+        }
+
+        function removeContact(){
+            contact.remove(removeSuccess,removeError);
+        }
+
+        function removeSuccess(){
+            console.log("remove ok");
+            onDeviceReady();
+            $.mobile.changePage("#contactslist", { transition: "pop" });
+        }
+        function removeError(contactError){
+            console.log("Error = " + contactError.code);
+        }
+        var by = function(name,minor)
+        {
+            return function(o, p)
+            {
+                var a, b;
+                if (typeof o === "object" && typeof p === "object" && o && p)
+                {
+                    a = o[name];
+                    b = p[name];
+                    if (a === b) {return typeof minor==='function' ?minor(o,p):0;}
+                    if (typeof a === typeof b) { return a < b ? -1 : 1;}
+                    return typeof a < typeof b ? -1 : 1;
+                }
+                else {throw ("error"); }
+            }
+        }
+
+        var phoneTypeTemplate ="<option value='mobile' selected='selected'>手机</option>" +
+                "<option value='home'>住宅</option>" +
+                "<option value='work'>单位</option>" +
+                "<option value='work fax'>单位传真</option>" +
+                "<option value='home fax'>住宅传真</option>" +
+                "<option value='pager'>寻呼机</option>" +
+                "<option value='other'>其他</option>" +
+                "</select>" ;
+
+
+
+        </script>
+    </head>
+    <body onload="onLoad()">
+    <div data-role="page" id="contactslist" >
+        <div data-role="header" >
+
+            <h4>Contacts-联系人</h4>
+            <a href="#options_popup" id="options_button" data-rel="popup" data-role="button" data-mini="true" data-theme="b" class="ui-btn-right">选项</a>
+
+            <div data-role="popup" id="options_popup" data-theme="none">
+                <div data-role="collapsible-set" >
+                    <div id="new_contact_button" data-role="collapsible" data-theme="b" data-collapsed-icon="arrow-r" data-expanded-icon="arrow-d" data-inset="false" data-collapsed="true">
+                        <h2 onclick="newContact()">增加新联系人</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div data-role="content" >
+            <ul id ="contacts_list" data-role="listview" data-autodividers="true" >
+
+            </ul>
+        </div>
+        <div data-theme="e" data-role="footer" data-position="fixed"  >
+            <label for="search-input"></label>
+            <input type="search" name="search-input" id="search-input" placeholder="Find contact" data-icon="search" onchange="searchContact()"/>
+            <span class="ui-title">Copyright GDMEC 2014</span>
+        </div>
+    </div>
+
+    <div data-role="page" id="contactdetail">
+        <div data-role="header">
+            <h4>编辑联系人信息</h4>
+            <a href="#" data-role="button" onclick="removeContact()">删除联系人</a>
+        </div>
+        <div data-role="content">
+            <div id="contactdetaildiv">
+                <div id="namediv">
+                    <form id="aaa" action="#">
+                        <div data-theme="b">姓名信息</div>
+                        <div data-role="fieldcontain">
+                            <label for="given_name_input">名：</label>
+                            <input id="given_name_input" name="given_name_input" type="text" placeholder="名" value="" data-mini="true" onchange="saveGivenName()"/>
+                        </div>
+                        <div data-role="fieldcontain">
+                            <label for="family_input">姓：</label>
+                            <input id="family_input" name="family_input" type="text" placeholder="姓" value="" data-mini="true" onchange="saveFamilyName()"/>
+                        </div>
+                        <div data-role="fieldcontain">
+                            <label for="nickname_input">昵称：</label>
+                            <input id="nickname_input" name="nickname_input" type="text" placeholder="昵称" value="" data-mini="true" onchange="saveNickName()"/>
+                        </div>
+                    </form>
+                </div>
+                <div id ="phoneNumbers" >
+                    <div style="color: blue">电话 <a href="#" data-role="button" data-inline="true" onclick="addItem('phoneNumbers')">增加</a></div>
+                    <div id ="phoneNumbersdiv" ></div>
+                </div>
+                <div id="emails">
+                    <div style="color: blue">电子邮件 <a href="#" data-role="button" data-inline="true" onclick="addItem('emails')">增加</a></div>
+                    <div id="emailsdiv"></div>
+                </div>
+                <div id="addrssesdiv">
+                    <div style="color: blue">地址</div>
+                </div>
+                <div id ="imsdiv">
+                    <div style="color: blue">即时通讯</div>
+                </div>
+                <div id="organizationsdiv">
+                    <div style="color: blue">单位</div>
+                </div>
+                <div id="photosdiv">
+                    <div style="color: blue">头像</div>
+                </div>
+                <div id ="categoriesdiv">
+                    <div style="color: blue">分组</div>
+                </div>
+                <div id="urlsdiv">
+                    <div style="color: blue">网址</div>
+                </div>
+
+            </div>
+        </div>
+        <div data-role="footer" data-position="fixed" data-tap-toggle="false">
+            <div id="new_contact_toolbar" data-role="navbar">
+                <ul>
+                    <li>
+                        <a href="#" id="new_contact_cancel_nav" data-mini="true" data-rel="back">放弃</a>
+                    </li>
+                    <li>
+                        <a href="#" id="new_contact_ok_nav" data-theme="b" data-mini="true" onclick="saveContact()">保存</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div data-role="page" id="addItem">
+
+    </div>
+    </body>
+</html>
